@@ -8,6 +8,8 @@
 #include <QScopedPointer>
 #include <QtGlobal>
 
+#include <QLocalSocket>
+
 class QKeyEvent;
 class QMouseEvent;
 class QWheelEvent;
@@ -21,6 +23,15 @@ public:
     ~MapWindow();
 
     void selfTest();
+
+signals:
+
+public slots:
+
+    void connected_callback();
+    void disconnected_callback();
+    void bytesWritten_callback (qint64 bytes);
+    void readyRead_callback();
 
 protected slots:
     void animationValueChanged();
@@ -44,6 +55,11 @@ private:
 
     QMapboxGLSettings m_settings;
     QScopedPointer<QMapboxGL> m_map;
+
+    QLocalSocket* m_socket;
+
+    QDataStream m_stream;
+    quint32 m_blockSize;
 
     QPropertyAnimation *m_bearingAnimation;
     QPropertyAnimation *m_zoomAnimation;

@@ -9,12 +9,38 @@
 #include <QMouseEvent>
 #include <QString>
 
+#include <rapidjson/document.h>
+
 int kAnimationDuration = 10000;
 
+#define MAP_WINDOW_UNIX_SOCKET "/tmp/flutter_mapbox_demo.unixsocket"
+
 MapWindow::MapWindow(const QMapboxGLSettings &settings)
-    : m_settings(settings)
+    : m_settings(settings), m_socket(new QLocalSocket(this))
 {
     setWindowIcon(QIcon(":icon.png"));
+
+    connect (m_socket, SIGNAL(connected()), this, SLOT(connected_callback()));
+    connect (m_socket, SIGNAL(disconnected()), this, SLOT(disconnected_callback()));
+    connect (m_socket, SIGNAL(readyRead()), this, SLOT(readyRead_callback()));
+    connect (m_socket, SIGNAL(bytesWritten(qint64)), this, SLOT(bytesWritten_callback(qint64)));
+
+    qDebug() << "Connecting...";
+
+    m_socket->connectToServer(MAP_WINDOW_UNIX_SOCKET);
+
+    if (!m_socket->waitForConnected(1000))
+    {
+        qDebug() << "Error: " << this->m_socket->errorString();
+    }
+    else
+    {
+        qDebug() << "Connected.";
+        m_stream.setDevice(m_socket);
+        m_stream.setVersion(QDataStream::Qt_5_8);
+        this->m_blockSize = 0;
+    }
+
 }
 
 MapWindow::~MapWindow()
@@ -22,6 +48,68 @@ MapWindow::~MapWindow()
     // Make sure we have a valid context so we
     // can delete the QMapboxGL.
     makeCurrent();
+}
+
+void MapWindow::connected_callback() 
+{
+    qDebug() << "connected_callback." << m_socket->serverName();
+}
+
+void MapWindow::disconnected_callback() 
+{
+    qDebug() << "disconnected_callback.";
+}
+
+void MapWindow::bytesWritten_callback (qint64 bytes) 
+{
+    qDebug() << "bytesWritten_callback. written bytes : " << bytes;
+}
+
+void MapWindow::readyRead_callback()
+{
+    qDebug() << "readyRead_callback." << m_socket->bytesAvailable();
+    
+    uint32_t buf_len;
+    m_stream.readRawData(reinterpret_cast<char*>(&buf_len), sizeof(buf_len));
+
+    //std::unique_ptr<uint8_t[]> buf = std::make_unique<uint8_t[]>(buf_len);
+    char* buf;
+    buf = reinterpret_cast<char*>(malloc(buf_len));
+    m_stream.readRawData(buf, buf_len);
+    qDebug() << buf;
+
+    rapidjson::Document document;
+    document.Parse(reinterpret_cast<const char*>(buf), buf_len);
+
+    if (document.HasParseError() || !document.IsObject()) {
+        qDebug() << "Could not parse document";
+        free(buf);
+        return;
+    }
+    auto root = document.GetObject();
+    auto method = root.FindMember("method");
+    if (method == root.MemberEnd() || !method->value.IsString()) {
+        free(buf);
+        return;
+    }
+    
+    if (method->value == "SetCurrentLocation") {
+        auto lat = root.FindMember("lat");
+        if (lat == root.MemberEnd() || !lat->value.IsDouble()) {
+            free(buf);
+            return;
+        }
+        auto lon = root.FindMember("lon");
+        if (lon == root.MemberEnd() || !lon->value.IsDouble()) {
+            free(buf);
+            return;
+        }
+        // Set current location.
+        m_map->setCoordinate(QMapbox::Coordinate(lat->value.GetDouble(), lon->value.GetDouble()));
+    }
+
+    free(buf);
+    return;
 }
 
 void MapWindow::selfTest()
@@ -89,7 +177,7 @@ void MapWindow::keyPressEvent(QKeyEvent *ev)
             // Not in all styles, but will work on streets
             QString before = "waterway-label";
 
-            QFile geojson(":source1.geojson");
+            QFile geojson(":source2.geojson");
             geojson.open(QIODevice::ReadOnly);
 
             // The data source for the route line and markers

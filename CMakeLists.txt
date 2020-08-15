@@ -17,7 +17,7 @@ endif()
 
 option(MBGL_WITH_CORE_ONLY "Build only the core bits, no platform code" OFF)
 option(MBGL_WITH_COVERAGE "Enable code coverage collection" OFF)
-option(MBGL_WITH_QT "Build Mapbox GL Qt bindings" OFF)
+option(MBGL_WITH_QT "Build Mapbox GL Qt bindings" ON)
 option(MBGL_WITH_SANITIZER "Use [address|thread|undefined] here" OFF)
 option(MBGL_WITH_RTTI "Compile with runtime type information" OFF)
 option(MBGL_WITH_OPENGL "Build with OpenGL renderer" ON)

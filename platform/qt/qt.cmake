@@ -4,6 +4,7 @@ find_package(Qt5Gui REQUIRED)
 find_package(Qt5Network REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Widgets REQUIRED)
+find_package(RapidJSON REQUIRED)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     add_definitions("-DQT_COMPILING_QIMAGE_COMPAT_CPP")
@@ -157,6 +158,7 @@ target_link_libraries(
     PRIVATE
         Qt5::Widgets
         Qt5::Gui
+        Qt5::Network
         mbgl-compiler-options
         qmapboxgl
 )
